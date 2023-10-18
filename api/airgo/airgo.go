@@ -29,6 +29,10 @@ type APIClient struct {
 	eTags               map[string]string
 }
 
+//	func Show(data any) {
+//		b, _ := json.Marshal(data)
+//		fmt.Println("data:", string(b))
+//	}
 func New(apiConfig *api.Config) *APIClient {
 	client := resty.New()
 	client.SetRetryCount(3)
@@ -115,6 +119,7 @@ func (c *APIClient) GetNodeInfo() (*api.NodeInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse node info failed: %s, \nError: %v", res.String(), err)
 	}
+
 	return nodeInfo, nil
 }
 func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, error) {
@@ -123,6 +128,14 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 	var enableTLS bool = true
 	var enableREALITY bool = false
 	var realityConfig = &api.REALITYConfig{}
+	var h = make(map[string]any)
+	var header json.RawMessage
+
+	if n.NodeSpeedlimit > 0 {
+		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
+	} else {
+		speedLimit = uint64((n.NodeSpeedlimit * 1000000) / 8)
+	}
 	if n.Security == "none" || n.Security == "" {
 		enableTLS = false
 	}
@@ -139,33 +152,49 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 			ShortIds:         []string{"", "0123456789abcdef"},
 		}
 	}
-	if n.NodeSpeedlimit > 0 {
-		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
-	} else {
-		speedLimit = uint64((n.NodeSpeedlimit * 1000000) / 8)
-	}
+
 	switch n.NodeType {
 	case "vless", "Vless":
 		nodeInfo = api.NodeInfo{
-			EnableVless: true,
-			VlessFlow:   n.VlessFlow,
-			NodeType:    c.NodeType,
-			NodeID:      c.NodeID,
-			Port:        uint32(n.Port),
-			SpeedLimit:  speedLimit,
-			//AlterID:           0,
+			EnableVless:       true,
+			VlessFlow:         n.VlessFlow,
+			NodeType:          c.NodeType,
+			NodeID:            c.NodeID,
+			Port:              uint32(n.Port),
+			SpeedLimit:        speedLimit,
 			TransportProtocol: n.Network,
 			EnableTLS:         enableTLS,
 			Path:              n.Path,
 			Host:              n.Host,
-			//CypherMethod:      n.Scy,
-			ServiceName:   n.ServiceName,
-			EnableREALITY: enableREALITY,
-			REALITYConfig: realityConfig,
+			ServiceName:       n.ServiceName,
+			EnableREALITY:     enableREALITY,
+			REALITYConfig:     realityConfig,
+		}
+		switch n.Network {
+		case "grpc":
+		case "ws":
+		case "tcp":
+			if n.Type == "http" {
+				h = map[string]any{
+					"type": "http",
+					"request": map[string]any{
+						"path": []string{
+							n.Path,
+						},
+						"headers": map[string]any{
+							"Host": []string{
+								n.Host,
+							},
+						},
+					},
+				}
+				header, _ = json.Marshal(h)
+				nodeInfo.Header = header
+			}
 		}
 	case "vmess", "Vmess":
 		nodeInfo = api.NodeInfo{
-			VlessFlow:         n.VlessFlow,
+			EnableVless:       false,
 			NodeType:          c.NodeType,
 			NodeID:            c.NodeID,
 			Port:              uint32(n.Port),
@@ -175,9 +204,31 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 			EnableTLS:         enableTLS,
 			Path:              n.Path,
 			Host:              n.Host,
-			//CypherMethod:      n.Scy,
-			ServiceName:   n.ServiceName,
-			EnableREALITY: enableREALITY,
+			CypherMethod:      n.Scy,
+			ServiceName:       n.ServiceName,
+			EnableREALITY:     enableREALITY,
+		}
+		switch n.Network {
+		case "grpc":
+		case "ws":
+		case "tcp":
+			if n.Type == "http" {
+				h = map[string]any{
+					"type": "http",
+					"request": map[string]any{
+						"path": []string{
+							n.Path,
+						},
+						"headers": map[string]any{
+							"Host": []string{
+								n.Host,
+							},
+						},
+					},
+				}
+				header, _ = json.Marshal(h)
+				nodeInfo.Header = header
+			}
 		}
 	case "Shadowsocks", "shadowsocks":
 		nodeInfo = api.NodeInfo{
@@ -189,15 +240,22 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 			CypherMethod:      n.Scy,
 			ServerKey:         n.ServerKey,
 		}
-	case "Trojan", "trojan":
-		nodeInfo = api.NodeInfo{
-			NodeType:          c.NodeType,
-			NodeID:            c.NodeID,
-			Port:              uint32(n.Port),
-			TransportProtocol: "tcp",
-			EnableTLS:         true,
-			Host:              n.Host,
-			ServiceName:       n.ServiceName,
+		if n.Type == "http" {
+			h = map[string]any{
+				"type": "http",
+				"request": map[string]any{
+					"path": []string{
+						n.Path,
+					},
+					"headers": map[string]any{
+						"Host": []string{
+							n.Host,
+						},
+					},
+				},
+			}
+			header, _ = json.Marshal(h)
+			nodeInfo.Header = header
 		}
 	}
 	return &nodeInfo, nil

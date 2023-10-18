@@ -23,6 +23,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Get version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -39,7 +43,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          file: server/scripts/Dockerfile
+          file: Dockerfile
           platforms: linux/arm,linux/arm64,linux/amd64
           push: true
           tags: |

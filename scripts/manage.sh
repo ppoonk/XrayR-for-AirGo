@@ -174,7 +174,7 @@ add_service(){
   RestartSec=1
   Type=simple
   WorkingDirectory=/usr/local/$1/
-  ExecStart=/usr/local/$1/$1 -start
+  ExecStart=/usr/local/$1/$1
 
   [Install]
   WantedBy=multi-user.target
