@@ -45,24 +45,6 @@ get_latest_version() {
           fi
 }
 
-# check os
-if [[ -f /etc/redhat-release ]]; then
-    release="centos"
-elif cat /etc/issue | grep -Eqi "debian"; then
-    release="debian"
-elif cat /etc/issue | grep -Eqi "ubuntu"; then
-    release="ubuntu"
-elif cat /etc/issue | grep -Eqi "centos|red hat|redhat"; then
-    release="centos"
-elif cat /proc/version | grep -Eqi "debian"; then
-    release="debian"
-elif cat /proc/version | grep -Eqi "ubuntu"; then
-    release="ubuntu"
-elif cat /proc/version | grep -Eqi "centos|red hat|redhat"; then
-    release="centos"
-else
-    echo -e "${red}未检测到系统版本，请联系脚本作者！${plain}\n" && exit 1
-fi
 
 os_version=""
 
@@ -475,9 +457,6 @@ show_usage() {
 }
 
 show_menu() {
-  get_region
-  get_arch
-  get_latest_version
     echo -e "
   ${green}XrayR 后端管理脚本，${plain}${red}不适用于docker${plain}
 --- 官方：https://github.com/XrayR-project/XrayR ---
@@ -571,5 +550,8 @@ if [[ $# > 0 ]]; then
         *) show_usage
     esac
 else
+    get_region
+    get_arch
+    get_latest_version
     show_menu
 fi
