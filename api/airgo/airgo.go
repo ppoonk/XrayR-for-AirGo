@@ -301,10 +301,11 @@ func (c *APIClient) GetUserList() (userList *[]api.UserInfo, err error) {
 	json.Unmarshal(res.Body(), &userResponse)
 	for _, v := range userResponse {
 		userInfo = append(userInfo, api.UserInfo{
-			UID:    int(v.ID),
-			UUID:   v.UUID,
-			Email:  v.UserName,
-			Passwd: v.Passwd,
+			UID:         int(v.ID),
+			UUID:        v.UUID,
+			Email:       v.UserName,
+			Passwd:      v.Passwd,
+			DeviceLimit: int(v.NodeConnector),
 		})
 	}
 	return &userInfo, nil

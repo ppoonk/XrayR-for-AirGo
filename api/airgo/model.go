@@ -32,10 +32,11 @@ type NodeInfoResponse struct {
 }
 
 type UserResponse struct {
-	ID       int64  `json:"id"`
-	UUID     string `json:"uuid"`
-	Passwd   string `json:"passwd"`
-	UserName string `json:"user_name"`
+	ID            int64  `json:"id"`
+	UUID          string `json:"uuid"`
+	Passwd        string `json:"passwd"`
+	UserName      string `json:"user_name"`
+	NodeConnector int64  `json:"node_connector"` //连接客户端数
 }
 
 type NodeStatusRequest struct {
