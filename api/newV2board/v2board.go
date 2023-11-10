@@ -286,7 +286,6 @@ func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
 			})
 		}
 	}
-
 	return &ruleList, nil
 }
 
