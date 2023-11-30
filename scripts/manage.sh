@@ -13,6 +13,7 @@ downloadUrl='https://github.com/ppoonk/XrayR-for-AirGo/releases/download/'
 apiUrl='https://api.github.com/repos/ppoonk/XrayR-for-AirGo/releases/latest'
 manageUrl='https://raw.githubusercontent.com/ppoonk/XrayR-for-AirGo/main/scripts/manage.sh'
 bbrUrl='https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/tcp.sh'
+ghproxy='https://mirror.ghproxy.com/'
 
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}错误: ${plain} 必须使用root用户运行此脚本！\n" && exit 1
@@ -20,9 +21,9 @@ bbrUrl='https://raw.githubusercontent.com/chiakge/Linux-NetSpeed/master/tcp.sh'
 get_region() {
     country=$( curl -4 "https://ipinfo.io/country" 2> /dev/null )
     if [ "$country" == "CN" ]; then
-      downloadUrl="https://gh-proxy.com/${downloadUrl}"
-      manageUrl="https://gh-proxy.com/${manageUrl}"
-      bbrUrl="https://gh-proxy.com/${bbrUrl}"
+      downloadUrl="${ghproxy}${downloadUrl}"
+      manageUrl="${ghproxy}${manageUrl}"
+      bbrUrl="${ghproxy}${bbrUrl}"
     fi
 }
 get_arch(){
@@ -100,13 +101,15 @@ before_show_menu() {
     show_menu
 }
 
+download_manage_scripts(){
+    wget -N --no-check-certificate -O /usr/bin/XrayR ${manageUrl}
+    chmod 777 /usr/bin/XrayR
+}
+
 download(){
   echo -e "开始下载核心"
   rm -rf /usr/local/XrayR
   mkdir /usr/local/XrayR
-
-  wget -N --no-check-certificate -O /usr/bin/XrayR ${manageUrl}
-  chmod 777 /usr/bin/XrayR
 
   wget -N --no-check-certificate -O /usr/local/XrayR/XrayR.zip ${downloadUrl}${latestVersion}/XrayR-linux-${arch}.zip
   if [[ $? -ne 0 ]]; then
@@ -169,8 +172,6 @@ install() {
 }
 
 update() {
-    wget -N --no-check-certificate -O /usr/bin/XrayR ${manageUrl}
-    chmod 777 /usr/bin/XrayR
     if [[ $# == 0 ]]; then
         echo && echo -n -e "输入指定版本(默认最新版): " && read version
     else
@@ -185,9 +186,8 @@ update() {
     date=$(date +%Y_%m_%d_%H_%M)
     mv XrayR XrayR_old_${date}
     mv ./temp/XrayR XrayR
-
+    rm -rf temp
     restart
-
     echo -e "${green}更新完成，原XrayR备份为：XrayR_old_${date}，已自动重启 XrayR，请使用 XrayR log 查看运行日志${plain}"
     before_show_menu
 }
@@ -330,15 +330,6 @@ show_log() {
 
 install_bbr() {
     bash <(curl -L -s "${bbr}")
-    #if [[ $? == 0 ]]; then
-    #    echo ""
-    #    echo -e "${green}安装 bbr 成功，请重启服务器${plain}"
-    #else
-    #    echo ""
-    #    echo -e "${red}下载 bbr 安装脚本失败，请检查本机能否连接 Github${plain}"
-    #fi
-
-    #before_show_menu
 }
 
 update_shell() {
@@ -553,5 +544,6 @@ else
     get_region
     get_arch
     get_latest_version
+    download_manage_scripts
     show_menu
 fi
