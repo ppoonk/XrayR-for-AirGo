@@ -149,13 +149,19 @@ func (c *APIClient) GetUserList() (userList *[]api.UserInfo, err error) {
 	var userResponse []UserResponse
 	var userInfo []api.UserInfo
 	json.Unmarshal(res.Body(), &userResponse)
+	var speedLimit uint64
 	for _, v := range userResponse {
+		if v.NodeSpeedLimit > 0 {
+			speedLimit = uint64((v.NodeSpeedLimit * 1000000) / 8)
+		} else {
+			speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
+		}
 		userInfo = append(userInfo, api.UserInfo{
 			UID:         int(v.ID),
 			UUID:        v.UUID,
 			Email:       v.UserName,
 			Passwd:      v.Passwd,
-			SpeedLimit:  uint64(v.NodeSpeedLimit),
+			SpeedLimit:  speedLimit,
 			DeviceLimit: int(v.NodeConnector),
 		})
 	}

@@ -17,8 +17,8 @@ Nodes:
     ApiConfig:
       ApiHost: "http://127.0.0.1:8899"
       ApiKey: "airgo"
-      NodeID: 1
-      NodeType: V2ray # Node type: V2ray, Shadowsocks, Trojan, Shadowsocks-Plugin
+      NodeID: 9
+      NodeType: Shadowsocks # Node type: V2ray, Shadowsocks, Trojan, Shadowsocks-Plugin
       Timeout: 30 # Timeout for the api request
       EnableVless: false # Enable Vless for V2ray Type
       VlessFlow: "xtls-rprx-vision" # Only support vless
