@@ -155,9 +155,11 @@ func (c *APIClient) GetUserList() (userList *[]api.UserInfo, err error) {
 			UUID:        v.UUID,
 			Email:       v.UserName,
 			Passwd:      v.Passwd,
+			SpeedLimit:  uint64(v.NodeSpeedLimit),
 			DeviceLimit: int(v.NodeConnector),
 		})
 	}
+	Show(userInfo)
 	return &userInfo, nil
 }
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
@@ -175,15 +177,14 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 	var header json.RawMessage
 
 	if n.NodeSpeedlimit > 0 {
-		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
-	} else {
 		speedLimit = uint64((n.NodeSpeedlimit * 1000000) / 8)
+	} else {
+		speedLimit = uint64((c.SpeedLimit * 1000000) / 8)
 	}
 	if n.Security == "none" || n.Security == "" {
 		enableTLS = false
 	}
 	if n.Security == "reality" {
-		enableREALITY = true
 		realityConfig = &api.REALITYConfig{
 			Dest:             n.Dest,
 			ProxyProtocolVer: 0,

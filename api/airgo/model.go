@@ -40,11 +40,12 @@ type Access struct {
 }
 
 type UserResponse struct {
-	ID            int64  `json:"id"`
-	UUID          string `json:"uuid"`
-	Passwd        string `json:"passwd"`
-	UserName      string `json:"user_name"`
-	NodeConnector int64  `json:"node_connector"` //连接客户端数
+	ID             int64  `json:"id"`
+	UUID           string `json:"uuid"`
+	Passwd         string `json:"passwd"`
+	UserName       string `json:"user_name"`
+	NodeConnector  int64  `json:"node_connector"` //连接客户端数
+	NodeSpeedLimit int64  `json:"node_speedLimit"`
 }
 
 type NodeStatusRequest struct {
