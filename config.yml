@@ -13,12 +13,12 @@ ConnectionConfig:
   DownlinkOnly: 4 # Time limit when the connection is closed after the uplink is closed, Second
   BufferSize: 64 # The internal cache size of each connection, kB
 Nodes:
-  - PanelType: "AirGo" # Panel type: SSpanel, NewV2board, PMpanel, Proxypanel, V2RaySocks, GoV2Panel，AirGo
+  - PanelType: "AirGo" # Panel type: SSpanel, NewV2board, AirGo
     ApiConfig:
       ApiHost: "http://127.0.0.1:8899"
       ApiKey: "airgo"
-      NodeID: 9
-      NodeType: Shadowsocks # Node type: V2ray, Shadowsocks, Trojan, Shadowsocks-Plugin
+      NodeID: 1
+      NodeType: V2ray # Node type: V2ray, Shadowsocks, Trojan, Shadowsocks-Plugin
       Timeout: 30 # Timeout for the api request
       EnableVless: false # Enable Vless for V2ray Type
       VlessFlow: "xtls-rprx-vision" # Only support vless
@@ -68,7 +68,7 @@ Nodes:
           - ""
           - 0123456789abcdef
       CertConfig:
-        CertMode: dns # Option about how to get certificate: none, file, http, tls, dns. Choose "none" will forcedly disable the tls config.
+        CertMode: none # Option about how to get certificate: none, file, http, tls, dns. Choose "none" will forcedly disable the tls config.
         CertDomain: "node1.test.com" # Domain to cert
         CertFile: /etc/XrayR/cert/node1.test.com.cert # Provided if the CertMode is file
         KeyFile: /etc/XrayR/cert/node1.test.com.key
@@ -132,7 +132,7 @@ Nodes:
 #          - ""
 #          - 0123456789abcdef
 #      CertConfig:
-#        CertMode: dns # Option about how to get certificate: none, file, http, tls, dns. Choose "none" will forcedly disable the tls config.
+#        CertMode: none # Option about how to get certificate: none, file, http, tls, dns. Choose "none" will forcedly disable the tls config.
 #        CertDomain: "node1.test.com" # Domain to cert
 #        CertFile: /etc/XrayR/cert/node1.test.com.cert # Provided if the CertMode is file
 #        KeyFile: /etc/XrayR/cert/node1.test.com.key

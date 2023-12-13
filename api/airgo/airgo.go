@@ -165,7 +165,6 @@ func (c *APIClient) GetUserList() (userList *[]api.UserInfo, err error) {
 			DeviceLimit: int(v.NodeConnector),
 		})
 	}
-	Show(userInfo)
 	return &userInfo, nil
 }
 func (c *APIClient) GetNodeRule() (*[]api.DetectRule, error) {
@@ -191,6 +190,7 @@ func (c *APIClient) ParseAirGoNodeInfo(n *NodeInfoResponse) (*api.NodeInfo, erro
 		enableTLS = false
 	}
 	if n.Security == "reality" {
+		enableREALITY = true
 		realityConfig = &api.REALITYConfig{
 			Dest:             n.Dest,
 			ProxyProtocolVer: 0,
