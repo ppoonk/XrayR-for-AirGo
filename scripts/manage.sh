@@ -5,7 +5,8 @@ green='\033[0;32m'
 yellow='\033[0;33m'
 plain='\033[0m'
 
-
+release=""
+os_version=""
 arch=$(uname -m)
 version="v1.0.0"
 latestVersion=''
@@ -34,42 +35,63 @@ get_arch(){
   elif [[ $arch == "arm"  || $arch == "armv7" || $arch == "armv7l" || $arch == "armv6" ]];then
       arch="arm32-v7a"
   else
-      echo -e ${red}"不支持的arch，请自行编译\n"${plain}
+      echo -e "${red}不支持的arch，请自行编译${plain}"
       exit 1
   fi
 }
 get_latest_version() {
-          latestVersion=$(curl -Ls ${apiUrl} | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-          if [[ ! -n "$latestVersion" ]]; then
-              echo -e "${red}获取最新版本失败，请稍后重试${plain}"
-              exit 1
-          fi
+  latestVersion=$(curl -Ls ${apiUrl} | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+  if [[ ! -n "$latestVersion" ]]; then
+      echo -e "${red}获取最新版本失败，请稍后重试${plain}"
+      exit 1
+  fi
 }
 
-
-os_version=""
+get_os(){
+# check os
+  if [[ -f /etc/redhat-release ]]; then
+      release="centos"
+  elif cat /etc/issue | grep -Eqi "debian"; then
+      release="debian"
+  elif cat /etc/issue | grep -Eqi "ubuntu"; then
+      release="ubuntu"
+  elif cat /etc/issue | grep -Eqi "centos|red hat|redhat"; then
+      release="centos"
+  elif cat /proc/version | grep -Eqi "debian"; then
+      release="debian"
+  elif cat /proc/version | grep -Eqi "ubuntu"; then
+      release="ubuntu"
+  elif cat /proc/version | grep -Eqi "centos|red hat|redhat"; then
+      release="centos"
+  elif cat /proc/version | grep -Eqi "alpine"; then
+      release="alpine"
+  else
+    echo -e "${red}未检测到系统版本，请联系脚本作者${plain}" && exit 1
+  fi
 
 # os version
-if [[ -f /etc/os-release ]]; then
-    os_version=$(awk -F'[= ."]' '/VERSION_ID/{print $3}' /etc/os-release)
-fi
-if [[ -z "$os_version" && -f /etc/lsb-release ]]; then
-    os_version=$(awk -F'[= ."]+' '/DISTRIB_RELEASE/{print $2}' /etc/lsb-release)
-fi
+  if [[ -f /etc/os-release ]]; then
+      os_version=$(awk -F'[= ."]' '/VERSION_ID/{print $3}' /etc/os-release)
+  fi
+  if [[ -z "$os_version" && -f /etc/lsb-release ]]; then
+      os_version=$(awk -F'[= ."]+' '/DISTRIB_RELEASE/{print $2}' /etc/lsb-release)
+  fi
 
-if [[ x"${release}" == x"centos" ]]; then
-    if [[ ${os_version} -le 6 ]]; then
-        echo -e "${red}请使用 CentOS 7 或更高版本的系统！${plain}\n" && exit 1
-    fi
-elif [[ x"${release}" == x"ubuntu" ]]; then
-    if [[ ${os_version} -lt 16 ]]; then
-        echo -e "${red}请使用 Ubuntu 16 或更高版本的系统！${plain}\n" && exit 1
-    fi
-elif [[ x"${release}" == x"debian" ]]; then
-    if [[ ${os_version} -lt 8 ]]; then
-        echo -e "${red}请使用 Debian 8 或更高版本的系统！${plain}\n" && exit 1
-    fi
-fi
+  if [[ x"${release}" == x"centos" ]]; then
+      if [[ ${os_version} -le 6 ]]; then
+          echo -e "${red}请使用 CentOS 7 或更高版本的系统${plain}" && exit 1
+      fi
+  elif [[ x"${release}" == x"ubuntu" ]]; then
+      if [[ ${os_version} -lt 16 ]]; then
+          echo -e "${red}请使用 Ubuntu 16 或更高版本的系统！${plain}" && exit 1
+      fi
+  elif [[ x"${release}" == x"debian" ]]; then
+      if [[ ${os_version} -lt 8 ]]; then
+          echo -e "${red}请使用 Debian 8 或更高版本的系统！${plain}" && exit 1
+      fi
+  fi
+
+}
 
 confirm() {
     if [[ $# > 1 ]]; then
@@ -123,6 +145,19 @@ download(){
 
 }
 add_service(){
+  case ${release} in
+  "alpine")
+  cat >/etc/init.d/$1 <<-EOF
+#!/sbin/openrc-run
+
+pidfile="/usr/local/$1/pid.pid"
+command="/usr/local/$1/$1"
+command_args="-c /usr/local/$1/config.yaml"
+command_background=true
+EOF
+chmod 777 /etc/init.d/$1
+    ;;
+  *)
   rm -rf /etc/systemd/system/$1.service
   cat >/etc/systemd/system/$1.service <<-EOF
   [Unit]
@@ -141,15 +176,17 @@ add_service(){
   [Install]
   WantedBy=multi-user.target
 EOF
-
+  systemctl daemon-reload
+  systemctl stop XrayR
+  systemctl enable XrayR
+    ;;
+  esac
+  return $?
 }
 
 install() {
   download
   add_service "XrayR"
-  systemctl daemon-reload
-  systemctl stop XrayR
-  systemctl enable XrayR
       echo -e ""
       echo "XrayR 管理脚本使用方法 (兼容使用xrayr执行，大小写不敏感): "
       echo "------------------------------------------"
@@ -222,13 +259,22 @@ uninstall() {
         fi
         return 0
     fi
-    systemctl stop XrayR
-    systemctl disable XrayR
-    rm /etc/systemd/system/XrayR.service -f
-    systemctl daemon-reload
-    systemctl reset-failed
-    rm /usr/local/XrayR/ -rf
-
+    case ${release} in
+    "alpine")
+      uninstall_for_alpine
+      ;;
+    "ubuntu")
+      uninstall_for_ubuntu
+      ;;
+    "debian")
+      uninstall_for_ubuntu
+      ;;
+    "centos")
+      uninstall_for_ubuntu
+      ;;
+    *)
+      ;;
+    esac
     echo ""
     echo -e "卸载成功，如果你想删除此脚本，则退出脚本后运行 ${green}rm /usr/bin/XrayR -f${plain} 进行删除"
     echo ""
@@ -237,6 +283,21 @@ uninstall() {
         before_show_menu
     fi
 }
+uninstall_for_ubuntu(){
+  systemctl stop XrayR
+  systemctl disable XrayR
+  rm /etc/systemd/system/XrayR.service -f
+  systemctl daemon-reload
+  systemctl reset-failed
+  rm /usr/local/XrayR/ -rf
+}
+uninstall_for_alpine(){
+  service XrayR stop
+  rc-update delete XrayR
+  rm /etc/init.d/XrayR -f
+  rm /usr/local/XrayR/ -rf
+}
+
 
 start() {
     check_status
@@ -244,7 +305,22 @@ start() {
         echo ""
         echo -e "${green}XrayR已运行，无需再次启动，如需重启请选择重启${plain}"
     else
-        systemctl start XrayR
+        case ${release} in
+        "alpine")
+          rc-service XrayR start
+          ;;
+        "ubuntu")
+          systemctl start XrayR
+          ;;
+        "debian")
+          systemctl start XrayR
+          ;;
+        "centos")
+          systemctl start XrayR
+          ;;
+        *)
+          ;;
+        esac
         sleep 2
         check_status
         if [[ $? == 0 ]]; then
@@ -260,7 +336,22 @@ start() {
 }
 
 stop() {
-    systemctl stop XrayR
+    case ${release} in
+    "alpine")
+      rc-service XrayR stop
+      ;;
+    "ubuntu")
+      systemctl stop XrayR
+      ;;
+    "debian")
+      systemctl stop XrayR
+      ;;
+    "centos")
+      systemctl stop XrayR
+      ;;
+    *)
+      ;;
+    esac
     sleep 2
     check_status
     if [[ $? == 1 ]]; then
@@ -275,28 +366,73 @@ stop() {
 }
 
 restart() {
+  case ${release} in
+  "alpine")
+    rc-service XrayR restart
+    ;;
+  "ubuntu")
     systemctl restart XrayR
-    sleep 2
-    check_status
-    if [[ $? == 0 ]]; then
-        echo -e "${green}XrayR 重启成功，请使用 XrayR log 查看运行日志${plain}"
-    else
-        echo -e "${red}XrayR可能启动失败，请稍后使用 XrayR log 查看日志信息${plain}"
-    fi
-    if [[ $# == 0 ]]; then
-        before_show_menu
-    fi
+    ;;
+  "debian")
+    systemctl restart XrayR
+    ;;
+  "centos")
+    systemctl restart XrayR
+    ;;
+  *)
+    ;;
+  esac
+  sleep 2
+  check_status
+  if [[ $? == 0 ]]; then
+      echo -e "${green}XrayR 重启成功，请使用 XrayR log 查看运行日志${plain}"
+  else
+      echo -e "${red}XrayR可能启动失败，请稍后使用 XrayR log 查看日志信息${plain}"
+  fi
+  if [[ $# == 0 ]]; then
+      before_show_menu
+  fi
 }
 
 status() {
-    systemctl status XrayR --no-pager -l
+    case ${release} in
+    "alpine")
+      service XrayR status
+      ;;
+    "ubuntu")
+      systemctl status XrayR --no-pager -l
+      ;;
+    "debian")
+      systemctl status XrayR --no-pager -l
+      ;;
+    "centos")
+      systemctl status XrayR --no-pager -l
+      ;;
+    *)
+      ;;
+    esac
     if [[ $# == 0 ]]; then
         before_show_menu
     fi
 }
 
 enable() {
-    systemctl enable XrayR
+      case ${release} in
+      "alpine")
+        rc-update add XrayR default
+        ;;
+      "ubuntu")
+        systemctl enable XrayR
+        ;;
+      "debian")
+        systemctl enable XrayR
+        ;;
+      "centos")
+        systemctl enable XrayR
+        ;;
+      *)
+        ;;
+      esac
     if [[ $? == 0 ]]; then
         echo -e "${green}XrayR 设置开机自启成功${plain}"
     else
@@ -309,7 +445,22 @@ enable() {
 }
 
 disable() {
-    systemctl disable XrayR
+    case ${release} in
+    "alpine")
+      rc-update delete XrayR
+      ;;
+    "ubuntu")
+      systemctl disable XrayR
+      ;;
+    "debian")
+      systemctl disable XrayR
+      ;;
+    "centos")
+      systemctl disable XrayR
+      ;;
+    *)
+      ;;
+    esac
     if [[ $? == 0 ]]; then
         echo -e "${green}XrayR 取消开机自启成功${plain}"
     else
@@ -346,24 +497,89 @@ update_shell() {
 
 # 0: running, 1: not running, 2: not installed
 check_status() {
-    if [[ ! -f /etc/systemd/system/XrayR.service ]]; then
-        return 2
-    fi
-    temp=$(systemctl status XrayR | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
-    if [[ x"${temp}" == x"running" ]]; then
-        return 0
+  res=0
+  case ${release} in
+  "alpine")
+    res=`check_status_alpine`
+    ;;
+  "ubuntu")
+    res=`check_statue_ubuntu`
+    ;;
+  "debian")
+    res=`check_statue_ubuntu`
+    ;;
+  "centos")
+    res=`check_statue_ubuntu`
+    ;;
+  esac
+  return $res
+}
+
+check_statue_ubuntu(){
+      if [[ ! -f /etc/systemd/system/XrayR.service ]]; then
+          return 2
+      fi
+      temp=$(systemctl status XrayR | grep Active | awk '{print $3}' | cut -d "(" -f2 | cut -d ")" -f1)
+      if [[ x"${temp}" == x"running" ]]; then
+          return 0
+      else
+          return 1
+      fi
+}
+
+check_status_alpine() {
+    temp=$(service XrayR status)
+    temp2=$(echo -e ${temp} | cut -d ":" -f2)
+    temp3=$(eval echo -e "${temp2}")
+    if [[ x"${temp3}" == x"stopped" ]]; then
+          return 1
+    elif [[ x"${temp3}" == x"started" ]]; then
+          return 0
     else
-        return 1
+          return 2
+
     fi
+
 }
 
 check_enabled() {
-    temp=$(systemctl is-enabled XrayR)
-    if [[ x"${temp}" == x"enabled" ]]; then
-        return 0
-    else
-        return 1;
-    fi
+  res=0
+  case ${release} in
+  "alpine")
+    res=`check_enabled_for_alpine`
+    ;;
+  "ubuntu")
+    res=`check_enabled_for_ubuntu`
+    ;;
+  "debian")
+    res=`check_enabled_for_ubuntu`
+    ;;
+  "centos")
+    res=`check_enabled_for_ubuntu`
+    ;;
+  *)
+    ;;
+  esac
+  return $res
+}
+check_enabled_for_alpine(){
+  temp=$(rc-update add XrayR default)
+  temp1=$(echo -e ${temp} | awk '{print $5}')
+  if [[ x"${temp1}" == x"installed" ]]; then
+      return 0
+  else
+      return 1
+  fi
+
+}
+check_enabled_for_ubuntu(){
+  temp=$(systemctl is-enabled XrayR)
+  if [[ x"${temp}" == x"enabled" ]]; then
+      return 0
+  else
+      return 1
+  fi
+
 }
 
 check_uninstall() {
@@ -451,7 +667,8 @@ show_menu() {
     echo -e "
   ${green}XrayR 后端管理脚本，${plain}${red}不适用于docker${plain}
 --- 官方：https://github.com/XrayR-project/XrayR ---
---- 适配AirGo：https://github.com/ppoonk/XrayR-for-AirGo ---
+--- 适配：https://github.com/ppoonk/XrayR-for-AirGo ---
+--- 系统：${release} 架构：${arch}
   ${green}0.${plain} 修改配置
 ————————————————
   ${green}1.${plain} 安装 XrayR
@@ -471,7 +688,6 @@ show_menu() {
  ${green}12.${plain} 查看 XrayR 版本
  ${green}13.${plain} 升级维护脚本
  "
- #后续更新可加入上方字符串中
     show_status
     echo && read -p "请输入选择 [0-13]: " num
 
@@ -541,6 +757,7 @@ if [[ $# > 0 ]]; then
         *) show_usage
     esac
 else
+    get_os
     get_region
     get_arch
     get_latest_version
