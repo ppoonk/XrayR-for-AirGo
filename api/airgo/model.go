@@ -59,3 +59,8 @@ type UserTrafficRequest struct {
 	ID          int               `json:"id"`
 	UserTraffic []api.UserTraffic `json:"user_traffic"`
 }
+
+type OnlineUser struct {
+	NodeID      int
+	UserNodeMap map[int][]string
+}

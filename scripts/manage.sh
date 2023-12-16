@@ -7,6 +7,7 @@ plain='\033[0m'
 
 release=""
 os_version=""
+cmd_type=""
 arch=$(uname -m)
 version="v1.0.0"
 latestVersion=''
@@ -19,6 +20,28 @@ ghproxy='https://mirror.ghproxy.com/'
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}错误: ${plain} 必须使用root用户运行此脚本！\n" && exit 1
 
+# 获取command类型
+get_cmd_type() {
+    if [[ $(command -v apt-get) ]]; then
+        cmd_type="apt"
+    elif [[ $(command -v yum) ]]; then
+        cmd_type="yum"
+    elif [[ $(command -v apk) ]]; then
+        cmd_type="apk"
+    else red "不支持的系统"
+    fi
+}
+#安装依赖
+install_base() {
+    if [[ x"$cmd_type" == x"yum" ]]; then
+        yum install wget curl tar -y
+    elif [[ x"$cmd_type" == x"apt" ]]; then
+        apt install wget curl tar -y
+    elif [[ x"$cmd_type" == x"apk" ]]; then
+        apk add wget curl tar -y
+    fi
+}
+
 get_region() {
     country=$( curl -4 "https://ipinfo.io/country" 2> /dev/null )
     if [ "$country" == "CN" ]; then
@@ -30,6 +53,8 @@ get_region() {
 get_arch(){
   if [[ $arch == "x86_64" || $arch == "x64" || $arch == "64" ]]; then
       arch="64"
+  elif [[ $arch == "i686" ]]; then
+      arch="32"
   elif [[ $arch == "aarch64" || $arch == "arm64" || $arch == "armv8" || $arch == "armv8l" ]]; then
       arch="arm64-v8a"
   elif [[ $arch == "arm"  || $arch == "armv7" || $arch == "armv7l" || $arch == "armv6" ]];then
@@ -145,8 +170,8 @@ download(){
 
 }
 add_service(){
-  case ${release} in
-  "alpine")
+  case ${cmd_type} in
+  "apk")
   cat >/etc/init.d/$1 <<-EOF
 #!/sbin/openrc-run
 
@@ -259,20 +284,12 @@ uninstall() {
         fi
         return 0
     fi
-    case ${release} in
-    "alpine")
+    case ${cmd_type} in
+    "apk")
       uninstall_for_alpine
       ;;
-    "ubuntu")
-      uninstall_for_ubuntu
-      ;;
-    "debian")
-      uninstall_for_ubuntu
-      ;;
-    "centos")
-      uninstall_for_ubuntu
-      ;;
     *)
+      uninstall_for_ubuntu
       ;;
     esac
     echo ""
@@ -305,20 +322,12 @@ start() {
         echo ""
         echo -e "${green}XrayR已运行，无需再次启动，如需重启请选择重启${plain}"
     else
-        case ${release} in
-        "alpine")
+        case ${cmd_type} in
+        "apk")
           rc-service XrayR start
           ;;
-        "ubuntu")
-          systemctl start XrayR
-          ;;
-        "debian")
-          systemctl start XrayR
-          ;;
-        "centos")
-          systemctl start XrayR
-          ;;
         *)
+          systemctl start XrayR
           ;;
         esac
         sleep 2
@@ -336,20 +345,12 @@ start() {
 }
 
 stop() {
-    case ${release} in
-    "alpine")
+    case ${cmd_type} in
+    "apk")
       rc-service XrayR stop
       ;;
-    "ubuntu")
-      systemctl stop XrayR
-      ;;
-    "debian")
-      systemctl stop XrayR
-      ;;
-    "centos")
-      systemctl stop XrayR
-      ;;
     *)
+      systemctl stop XrayR
       ;;
     esac
     sleep 2
@@ -366,20 +367,12 @@ stop() {
 }
 
 restart() {
-  case ${release} in
-  "alpine")
+  case ${cmd_type} in
+  "apk")
     rc-service XrayR restart
     ;;
-  "ubuntu")
-    systemctl restart XrayR
-    ;;
-  "debian")
-    systemctl restart XrayR
-    ;;
-  "centos")
-    systemctl restart XrayR
-    ;;
   *)
+    systemctl restart XrayR
     ;;
   esac
   sleep 2
@@ -395,20 +388,12 @@ restart() {
 }
 
 status() {
-    case ${release} in
-    "alpine")
+    case ${cmd_type} in
+    "apk")
       service XrayR status
       ;;
-    "ubuntu")
-      systemctl status XrayR --no-pager -l
-      ;;
-    "debian")
-      systemctl status XrayR --no-pager -l
-      ;;
-    "centos")
-      systemctl status XrayR --no-pager -l
-      ;;
     *)
+      systemctl status XrayR --no-pager -l
       ;;
     esac
     if [[ $# == 0 ]]; then
@@ -417,20 +402,12 @@ status() {
 }
 
 enable() {
-      case ${release} in
-      "alpine")
+      case ${cmd_type} in
+      "apk")
         rc-update add XrayR default
         ;;
-      "ubuntu")
-        systemctl enable XrayR
-        ;;
-      "debian")
-        systemctl enable XrayR
-        ;;
-      "centos")
-        systemctl enable XrayR
-        ;;
       *)
+        systemctl enable XrayR
         ;;
       esac
     if [[ $? == 0 ]]; then
@@ -445,20 +422,12 @@ enable() {
 }
 
 disable() {
-    case ${release} in
-    "alpine")
+    case ${cmd_type} in
+    "apk")
       rc-update delete XrayR
       ;;
-    "ubuntu")
-      systemctl disable XrayR
-      ;;
-    "debian")
-      systemctl disable XrayR
-      ;;
-    "centos")
-      systemctl disable XrayR
-      ;;
     *)
+      systemctl disable XrayR
       ;;
     esac
     if [[ $? == 0 ]]; then
@@ -498,17 +467,11 @@ update_shell() {
 # 0: running, 1: not running, 2: not installed
 check_status() {
   res=0
-  case ${release} in
+  case ${cmd_type} in
   "alpine")
     res=`check_status_alpine`
     ;;
-  "ubuntu")
-    res=`check_statue_ubuntu`
-    ;;
-  "debian")
-    res=`check_statue_ubuntu`
-    ;;
-  "centos")
+  *)
     res=`check_statue_ubuntu`
     ;;
   esac
@@ -544,20 +507,12 @@ check_status_alpine() {
 
 check_enabled() {
   res=0
-  case ${release} in
+  case ${cmd_type} in
   "alpine")
     res=`check_enabled_for_alpine`
     ;;
-  "ubuntu")
-    res=`check_enabled_for_ubuntu`
-    ;;
-  "debian")
-    res=`check_enabled_for_ubuntu`
-    ;;
-  "centos")
-    res=`check_enabled_for_ubuntu`
-    ;;
   *)
+    res=`check_enabled_for_ubuntu`
     ;;
   esac
   return $res
@@ -757,7 +712,8 @@ if [[ $# > 0 ]]; then
         *) show_usage
     esac
 else
-    get_os
+#    get_os
+    get_cmd_type
     get_region
     get_arch
     get_latest_version

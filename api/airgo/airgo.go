@@ -10,8 +10,8 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
-
 	"time"
 )
 
@@ -122,10 +122,16 @@ func (c *APIClient) GetNodeInfo() (*api.NodeInfo, error) {
 	//处理rule
 	c.LocalRuleList = []api.DetectRule{}
 	for i := range nodeInfoResponse.Access {
-		c.LocalRuleList = append(c.LocalRuleList, api.DetectRule{
-			ID:      int(nodeInfoResponse.Access[i].ID),
-			Pattern: regexp.MustCompile(strings.Join(strings.Fields(nodeInfoResponse.Access[i].Route), "|")),
-		})
+		ruleArr := strings.Fields(nodeInfoResponse.Access[i].Route)
+		for k, v := range ruleArr {
+			n := fmt.Sprintf("%d%d", i+1, k)
+			id, _ := strconv.Atoi(n)
+			c.LocalRuleList = append(c.LocalRuleList, api.DetectRule{
+				ID:      id,
+				Pattern: regexp.MustCompile(v),
+			})
+
+		}
 	}
 	return nodeInfo, nil
 }
@@ -346,7 +352,23 @@ func (c *APIClient) ReportUserTraffic(userTraffic *[]api.UserTraffic) (err error
 
 }
 func (c *APIClient) ReportNodeOnlineUsers(onlineUserList *[]api.OnlineUser) (err error) {
-	return nil
+	var onlineUser = OnlineUser{
+		NodeID:      c.NodeID,
+		UserNodeMap: make(map[int][]string),
+	}
+	for _, v := range *onlineUserList {
+		onlineUser.UserNodeMap[v.UID] = append(onlineUser.UserNodeMap[v.UID], v.IP)
+	}
+	path := "/api/airgo/user/ReportNodeOnlineUsers"
+	res, _ := c.client.R().
+		SetBody(onlineUser).
+		ForceContentType("application/json").
+		Post(path)
+	if res.StatusCode() == 200 {
+		return nil
+	}
+	return fmt.Errorf("request %s failed: %s", c.assembleURL(path), err)
+
 }
 func (c *APIClient) Describe() api.ClientInfo {
 	return api.ClientInfo{}

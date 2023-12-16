@@ -109,6 +109,9 @@ jobs:
           echo "GOOS: $GOOS, GOARCH: $GOARCH, GOARM: $GOARM, GOMIPS: $GOMIPS, RELEASE_NAME: $_NAME"
           echo "ASSET_NAME=$_NAME" >> $GITHUB_OUTPUT
           echo "ASSET_NAME=$_NAME" >> $GITHUB_ENV
+          echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+        env:
+          TAG: postgres
 
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -121,6 +124,7 @@ jobs:
 
       - name: Build XrayR
         run: |
+          sed -i 's/oldVersion/${{ steps.get_filename.outputs.VERSION }}/g' ${GITHUB_WORKSPACE}/cmd/version.go
           mkdir -p build_assets
           go build -v -o build_assets/XrayR -trimpath -ldflags "-s -w -buildid="
 
